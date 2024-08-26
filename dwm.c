@@ -61,6 +61,10 @@
 #define TAGMASK ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
 
+#define OPAQUE 0xffU
+
+#define OPAQUE 0xffU
+
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
 enum {
@@ -267,6 +271,7 @@ static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
+static void xinitvisual();
 static void zoom(const Arg *arg);
 
 /* variables */
@@ -302,6 +307,11 @@ static Display *dpy;
 static Drw *drw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
+
+static int useargb = 0;
+static Visual *visual;
+static int depth;
+static Colormap cmap;
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -1473,6 +1483,7 @@ void setlayout(const Arg *arg) {
 }
 
 /* arg > 1.0 will set mfact absolutely */
+
 void setmfact(const Arg *arg) {
   float f;
 
@@ -1489,24 +1500,14 @@ void setup(void) {
   int i;
   XSetWindowAttributes wa;
   Atom utf8string;
-  struct sigaction sa;
-
-  /* do not transform children into zombies when they terminate */
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_NOCLDSTOP | SA_NOCLDWAIT | SA_RESTART;
-  sa.sa_handler = SIG_IGN;
-  sigaction(SIGCHLD, &sa, NULL);
-
-  /* clean up any zombies (inherited from .xinitrc etc) immediately */
-  while (waitpid(-1, NULL, WNOHANG) > 0)
-    ;
 
   /* init screen */
   screen = DefaultScreen(dpy);
   sw = DisplayWidth(dpy, screen);
   sh = DisplayHeight(dpy, screen);
   root = RootWindow(dpy, screen);
-  drw = drw_create(dpy, screen, root, sw, sh);
+  xinitvisual();
+  drw = drw_create(dpy, screen, root, sw, sh, visual, depth, cmap);
   if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
   lrpad = drw->fonts->h;
@@ -1535,8 +1536,9 @@ void setup(void) {
   cursor[CurMove] = drw_cur_create(drw, XC_fleur);
   /* init appearance */
   scheme = ecalloc(LENGTH(colors), sizeof(Clr *));
+  unsigned int alphas[] = {borderalpha, baralpha, OPAQUE};
   for (i = 0; i < LENGTH(colors); i++)
-    scheme[i] = drw_scm_create(drw, colors[i], 3);
+    scheme[i] = drw_scm_create(drw, colors[i], alphas, 3);
   /* init bars */
   updatebars();
   updatestatus();
@@ -1591,21 +1593,18 @@ void showhide(Client *c) {
   }
 }
 
-void spawn(const Arg *arg) {
-  struct sigaction sa;
+void sigchld(int unused) {
+  if (signal(SIGCHLD, sigchld) == SIG_ERR)
+    die("can't install SIGCHLD handler:");
+  while (0 < waitpid(-1, NULL, WNOHANG))
+    ;
+}
 
-  if (arg->v == dmenucmd)
-    dmenumon[0] = '0' + selmon->num;
+void spawn(const Arg *arg) {
   if (fork() == 0) {
     if (dpy)
       close(ConnectionNumber(dpy));
     setsid();
-
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sa.sa_handler = SIG_DFL;
-    sigaction(SIGCHLD, &sa, NULL);
-
     execvp(((char **)arg->v)[0], (char **)arg->v);
     die("dwm: execvp '%s' failed:", ((char **)arg->v)[0]);
   }
@@ -1748,16 +1747,19 @@ void unmapnotify(XEvent *e) {
 void updatebars(void) {
   Monitor *m;
   XSetWindowAttributes wa = {.override_redirect = True,
-                             .background_pixmap = ParentRelative,
+                             .background_pixel = 0,
+                             .border_pixel = 0,
+                             .colormap = cmap,
                              .event_mask = ButtonPressMask | ExposureMask};
   XClassHint ch = {"dwm", "dwm"};
   for (m = mons; m; m = m->next) {
     if (m->barwin)
       continue;
-    m->barwin = XCreateWindow(
-        dpy, root, m->wx, m->by, m->ww, bh, 0, DefaultDepth(dpy, screen),
-        CopyFromParent, DefaultVisual(dpy, screen),
-        CWOverrideRedirect | CWBackPixmap | CWEventMask, &wa);
+    m->barwin = XCreateWindow(dpy, root, m->wx, m->by, m->ww, bh, 0, depth,
+                              InputOutput, visual,
+                              CWOverrideRedirect | CWBackPixel | CWBorderPixel |
+                                  CWColormap | CWEventMask,
+                              &wa);
     XDefineCursor(dpy, m->barwin, cursor[CurNormal]->cursor);
     XMapRaised(dpy, m->barwin);
     XSetClassHint(dpy, m->barwin, &ch);
@@ -1775,7 +1777,7 @@ void updatebarpos(Monitor *m) {
     m->by = -bh;
 }
 
-void updateclientlist(void) {
+void updateclientlist() {
   Client *c;
   Monitor *m;
 
@@ -2019,9 +2021,41 @@ int xerrordummy(Display *dpy, XErrorEvent *ee) { return 0; }
 
 /* Startup Error handler to check if another window manager
  * is already running. */
+
 int xerrorstart(Display *dpy, XErrorEvent *ee) {
   die("dwm: another window manager is already running");
   return -1;
+}
+
+void xinitvisual() {
+  XVisualInfo *infos;
+  XRenderPictFormat *fmt;
+  int nitems;
+  int i;
+
+  XVisualInfo tpl = {.screen = screen, .depth = 32, .class = TrueColor};
+  long masks = VisualScreenMask | VisualDepthMask | VisualClassMask;
+
+  infos = XGetVisualInfo(dpy, masks, &tpl, &nitems);
+  visual = NULL;
+  for (i = 0; i < nitems; i++) {
+    fmt = XRenderFindVisualFormat(dpy, infos[i].visual);
+    if (fmt->type == PictTypeDirect && fmt->direct.alphaMask) {
+      visual = infos[i].visual;
+      depth = infos[i].depth;
+      cmap = XCreateColormap(dpy, root, visual, AllocNone);
+      useargb = 1;
+      break;
+    }
+  }
+
+  XFree(infos);
+
+  if (!visual) {
+    visual = DefaultVisual(dpy, screen);
+    depth = DefaultDepth(dpy, screen);
+    cmap = DefaultColormap(dpy, screen);
+  }
 }
 
 void zoom(const Arg *arg) {
