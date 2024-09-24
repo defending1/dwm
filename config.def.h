@@ -49,6 +49,7 @@ static const Rule rules[] = {
     /* class      instance    title       tags mask     isfloating   monitor */
     {"Gimp", NULL, NULL, 0, 1, -1},
     {"Firefox", NULL, NULL, 1 << 8, 0, -1},
+    {NULL, NULL, "stfloat", 0, 1, -1},
 };
 
 /* layout(s) */
@@ -88,6 +89,10 @@ static const char *dmenucmd[] = {
     "-nf",       col_gray3, "-sb",    col_cyan, "-sf",     col_gray4, NULL};
 static const char *termcmd[] = {"st", NULL};
 
+static const char scratchpadname[] = "scratchpad";
+static const char *scratchpadcmd[] = {"st", "-t",     scratchpadname,
+                                      "-g", "120x34", NULL};
+
 static const Key keys[] = {
     /* modifier                     key        function        argument */
     {MODKEY, XK_p, spawn, {.v = dmenucmd}},
@@ -100,6 +105,7 @@ static const Key keys[] = {
     {MODKEY, XK_h, setmfact, {.f = -0.05}},
     {MODKEY, XK_l, setmfact, {.f = +0.05}},
     {MODKEY, XK_Return, zoom, {0}},
+    {MODKEY, XK_grave, togglescratch, {.v = scratchpadcmd}},
     {MODKEY, XK_Tab, view, {0}},
     {MODKEY | ShiftMask, XK_c, killclient, {0}},
     {MODKEY, XK_t, setlayout, {.v = &layouts[0]}},
