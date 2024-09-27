@@ -5,8 +5,11 @@ static const unsigned int borderpx = 1; /* border pixel of windows */
 static const unsigned int snap = 32;    /* snap pixel */
 static const int showbar = 1;           /* 0 means no bar */
 static const int topbar = 1;            /* 0 means bottom bar */
-static const char *fonts[] = {"monospace:size=10"};
-static const char dmenufont[] = "monospace:size=10";
+static const char *fonts[] = {
+    "scientifica:size=18",
+    "Hack Nerd Font:size=12:antialias=true:autohint=true",
+    "Noto Color Emoji:antialias=true:autohint=true"};
+static const char dmenufont[] = "Hack:size=10:antialias=true:autohint=true";
 static unsigned int baralpha = 0xd0;
 static unsigned int borderalpha = OPAQUE;
 static const char col_gray1[] = "#222222";
