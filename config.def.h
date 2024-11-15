@@ -6,7 +6,6 @@ static const unsigned int snap = 32;    /* snap pixel */
 static const int showbar = 1;           /* 0 means no bar */
 static const int topbar = 1;            /* 0 means bottom bar */
 static const char *fonts[] = {
-    "scientifica:size=18",
     "Hack Nerd Font:size=12:antialias=true:autohint=true",
     "Noto Color Emoji:antialias=true:autohint=true"};
 static const char dmenufont[] = "Hack:size=10:antialias=true:autohint=true";
@@ -98,7 +97,7 @@ static const char *scratchpadcmd[] = {"st", "-t",     scratchpadname,
 
 static const Key keys[] = {
     /* modifier                     key        function        argument */
-    {MODKEY, XK_p, spawn, {.v = dmenucmd}},
+    {MODKEY, XK_p, spawn, SHCMD("menu")},
     {MODKEY | ShiftMask, XK_Return, spawn, {.v = termcmd}},
     {MODKEY, XK_b, togglebar, {0}},
     {MODKEY, XK_j, focusstack, {.i = +1}},
