@@ -71,7 +71,7 @@ static const int resizehints =
 #include "layouts.c"
 
 static const int lockfullscreen =
-    1; /* 1 will force focus on the fullscreen window */
+    0; /* 1 will force focus on the fullscreen window */
 
 static const Layout layouts[] = {
     /* symbol     arrange function */
