@@ -11,7 +11,7 @@ static const char *fonts[] = {
     "Hack Nerd Font:size=12:antialias=true:autohint=true",
     "Noto Color Emoji:antialias=true:autohint=true"};
 static const char dmenufont[] = "Hack:size=10:antialias=true:autohint=true";
-static unsigned int baralpha = 0xd0;
+static unsigned int baralpha = 0xb0;
 static unsigned int borderalpha = OPAQUE;
 static const char col_gray1[] = "#222222";
 static const char col_gray2[] = "#444444";
@@ -110,6 +110,7 @@ static const char *scratchpadcmd[] = {"st", "-t",     scratchpadname,
 static const Key keys[] = {
     /* modifier                     key        function        argument */
     {MODKEY, XK_p, spawn, SHCMD("menu")},
+    {MODKEY | ShiftMask, XK_p, spawn, SHCMD("pmenu")},
     {MODKEY | ShiftMask, XK_Return, spawn, {.v = termcmd}},
     {MODKEY, XK_b, togglebar, {0}},
     {MODKEY, XK_j, focusstack, {.i = +1}},
@@ -121,7 +122,8 @@ static const Key keys[] = {
     {MODKEY, XK_Return, zoom, {0}},
     {MODKEY, XK_grave, togglescratch, {.v = scratchpadcmd}},
     {MODKEY, XK_Tab, view, {0}},
-    {MODKEY | ShiftMask, XK_c, killclient, {0}},
+    {MODKEY, XK_q, killclient, {0}},
+    {MODKEY | ShiftMask, XK_q, spawn, SHCMD("sysact")},
     {MODKEY, XK_t, setlayout, {.v = &layouts[0]}},
     {MODKEY, XK_f, setlayout, {.v = &layouts[1]}},
     {MODKEY, XK_m, setlayout, {.v = &layouts[2]}},
@@ -137,8 +139,7 @@ static const Key keys[] = {
     {MODKEY, XK_n, nametag, {0}},
     TAGKEYS(XK_1, 0) TAGKEYS(XK_2, 1) TAGKEYS(XK_3, 2) TAGKEYS(XK_4, 3)
         TAGKEYS(XK_5, 4) TAGKEYS(XK_6, 5) TAGKEYS(XK_7, 6) TAGKEYS(XK_8, 7)
-            TAGKEYS(XK_9, 8){MODKEY | ShiftMask, XK_q, quit, {0}},
-};
+            TAGKEYS(XK_9, 8)};
 
 /* button definitions */
 /* click can be ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle,
